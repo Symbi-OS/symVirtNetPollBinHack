@@ -1,0 +1,9 @@
+*.gz
+linux-*/
+*~
+.*_installed
+*.i
+*.o
+*.out
+virtio_net.c
+sym_virtio_net.c
