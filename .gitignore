@@ -5,5 +5,8 @@ linux-*/
 *.i
 *.o
 *.out
-virtio_net.c
-sym_virtio_net.c
+*.bin
+*.addr
+*.xxd
+*.opcodes
+*.dump
