@@ -9,23 +9,38 @@ FILE=virtio_net.c
 VMLINUX=${VERSION}/vmlinux
 
 SYMBI_DIR=Symbi-OS
+
+SYMBI_L0_REPO=git@github.com:Symbi-OS/Apps.git
+SYMBI_L0_DIR=${SYMBI_DIR}/Apps
+SYMBI_L0_HEADER=${SYMBI_L0_DIR}/include/headers/sym_lib.h
+SYMBI_L0_LIBDIR=${SYMBI_L0_DIR}/include
+SYMBI_L0_LIB=${SYMBI_L0_LIBDIR}/libsym.a
+
 SYMBI_PGFLT_REPO=git@github.com:Symbi-OS/Apps.git
 SYMBI_PGFLT_DIR=${SYMBI_DIR}/Apps
 SYMBI_PGFLT_HEADER=${SYMBI_PGFLT_DIR}/include/headers/sym_lib_page_fault.h
-SYMBI_PGFLT_LIB=${SYMBI_DIR}/Apps/include/libsym.a
+SYMBI_PGFLT_LIBDIR=${SYMBI_PGFLT_DIR}/include
+SYMBI_PGFLT_LIB=${SYMBI_PGFLT_LIBDIR}/libsym.a
 
 .PHONEY: clean dist-clean all download extract config prepare vmlinux
 
-all: old.dump new.dump writebytes
+all: old.dump new.dump symrd symwr 
 
-writebytes: writebytes.c ${SYMBI_PGFLT_HEADER} ${SYMBI_PGFLT_LIB}
-	cc -o $@ $< ${SYMBI_PGFLT_LIB}
+symrd: readbytes.c ${SYMBI_L0_HEADER} ${SYMBI_L0_LIB}
+	gcc -o $@ $< ${SYMBI_L0_LIB}
 
-${SYMBI_PGFLT_LIB}: ${SYMBI_PGFLT_HEADER}
-	make -C ${SYMBI_DIR}/Apps/include
+${SYMBI_L0_HEADER}:
+	cd Symbi-OS && git clone ${SYMBI_L0_REPO}
+${SYMBI_L0_LIB}: ${SYMBI_L0_HEADER}
+	make -C ${SYMBI_L0_LIBDIR}
+
+symwr: writebytes.c ${SYMBI_PGFLT_HEADER} ${SYMBI_PGFLT_LIB}
+	gcc -o $@ $< ${SYMBI_PGFLT_LIB}
 
 ${SYMBI_PGFLT_HEADER}:
-	cd Symbi-OS && git clone git@github.com:Symbi-OS/Apps.git
+	cd Symbi-OS && git clone ${SYMBI_PGFLT_REPO}
+${SYMBI_PGFLT_LIB}: ${SYMBI_PGFLT_HEADER}
+	make -C ${SYMBI_PGFLT_LIBDIR}
 
 new.o: new.S
 	gcc -c new.S -o new.o
@@ -82,7 +97,7 @@ vmlinux: ${VERSION}/vmlinux
 
 #$(VERSION}/include/arch/
 clean:
-	-rm -rf $(wildcard *.i *.o *.out *~ *.bin *.dump *.addr *.opcodes *.xxd)
+	-rm -rf $(wildcard *.i *.o *.out *~ *.bin *.dump *.addr *.opcodes *.xxd symrd symrw)
 
 dist-clean: clean
 	-rm -rf $(wildcard ${VERSION_INSTALLED} ${VERSION} ${TGZ} ${SYMBI_PGFLT_DIR})

@@ -11,3 +11,5 @@ linux-*/
 *.opcodes
 *.dump
 Symbi-OS/Apps
+symrd
+symwr
