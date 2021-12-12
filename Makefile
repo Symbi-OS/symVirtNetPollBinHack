@@ -8,9 +8,24 @@ LINE=1545
 FILE=virtio_net.c
 VMLINUX=${VERSION}/vmlinux
 
+SYMBI_DIR=Symbi-OS
+SYMBI_PGFLT_REPO=git@github.com:Symbi-OS/Apps.git
+SYMBI_PGFLT_DIR=${SYMBI_DIR}/Apps
+SYMBI_PGFLT_HEADER=${SYMBI_PGFLT_DIR}/include/headers/sym_lib_page_fault.h
+SYMBI_PGFLT_LIB=${SYMBI_DIR}/Apps/include/libsym.a
+
 .PHONEY: clean dist-clean all download extract config prepare vmlinux
 
-all: old.dump new.dump 
+all: old.dump new.dump writebytes
+
+writebytes: writebytes.c ${SYMBI_PGFLT_HEADER} ${SYMBI_PGFLT_LIB}
+	cc -o $@ $< ${SYMBI_PGFLT_LIB}
+
+${SYMBI_PGFLT_LIB}: ${SYMBI_PGFLT_HEADER}
+	make -C ${SYMBI_DIR}/Apps/include
+
+${SYMBI_PGFLT_HEADER}:
+	cd Symbi-OS && git clone git@github.com:Symbi-OS/Apps.git
 
 new.o: new.S
 	gcc -c new.S -o new.o
@@ -70,4 +85,4 @@ clean:
 	-rm -rf $(wildcard *.i *.o *.out *~ *.bin *.dump *.addr *.opcodes *.xxd)
 
 dist-clean: clean
-	-rm -rf $(wildcard ${VERSION_INSTALLED} ${VERSION} ${TGZ} )
+	-rm -rf $(wildcard ${VERSION_INSTALLED} ${VERSION} ${TGZ} ${SYMBI_PGFLT_DIR})

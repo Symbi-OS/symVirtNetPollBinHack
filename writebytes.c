@@ -4,6 +4,20 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "Symbi-OS/Apps/include/headers/sym_lib_page_fault.h"
+
+
+// when we add support for kernel source get this
+// from arch/x86/include/asm/pgtable_types.h
+enum pg_level {
+	       PG_LEVEL_NONE,
+	       PG_LEVEL_4K,
+	       PG_LEVEL_2M,
+	       PG_LEVEL_1G,
+	       PG_LEVEL_512G,
+	       PG_LEVEL_NUM
+};
+
 void usage(int argc, char **argv)
 {
   fprintf(stderr, "%s: <addr>\n"
@@ -11,71 +25,62 @@ void usage(int argc, char **argv)
 	  argv[0]);
 }
 
+
+
+uint64_t
+getVPNMask(unsigned int level)
+{
+  switch (level) {
+  case PG_LEVEL_4K:
+    return ~(((1ULL<<12)-1));
+  case PG_LEVEL_2M:
+    return ~(((1ULL<<20)-1));
+  case PG_LEVEL_1G:
+    return ~(((1ULL<<29)-1));
+  case PG_LEVEL_512G:
+    return ~(((1ULL<<38)-1));
+  default:
+    assert(0);
+  }	    
+  return 0;
+}
+
 void *
-getPageVPN(void *addr)
+getPageDesc(uint64_t addr, unsigned int *level)
 {
-  return NULL;
+  //  returns a copy of the page descriptor
+  return  sym_get_pte(addr, level);
 }
 
-uint64_t
-getPagePermissions(void *VPN)
+
+static inline bool
+isPageWriteable(void *desc)
 {
-  return 0;
+  struct pte * pte = desc;
+  return sym_is_pte_writeable(*pte);
 }
 
-uint64_t
-setPagePermissions(void *VPN, uint64_t perms)
+static inline void
+setPageWriteable(void *desc)
 {
-  return 0;
+  struct pte *pte = desc;
+  sym_set_pte_writeable(pte);
 }
 
-bool
-isPageWriteAble(uint64_t perms)
+static inline void
+clearPageWriteable(void *desc)
 {
-  return true;
+  struct pte *pte = desc;
+  sym_clear_pte_writeable(pte);
 }
 
-bool
-isPageReadAble(uint64_t perms)
+bool updateWriteIfNeeded(void *desc)
 {
-  return true;
-}
-
-uint64_t
-setPageWriteAble(uint64_t perms)
-{
-  return 0;
-}
-
-uint64_t
-setPageReadAble(uint64_t perms)
-{
-  return 0;
-}
-
-void
-fixPagePerms(void *vpn, uint64_t *origPagePerms, uint64_t *newPagePerms)
-{
-  uint64_t operms, nperms;
+  bool curWritable;
   
-  operms = getPagePermissions(vpn);
-  if (!isPageWriteAble(operms)) {
-      nperms = setPageWriteAble(operms);
-      setPagePermissions(vpn, nperms);
-  } else { // no need to update
-    nperms = operms;
-  }
-  
-  *origPagePerms = operms;
-  *newPagePerms = nperms;
-}
-
-void
-restorePagePerms(void *vpn, uint64_t origPagePerms, uint64_t newPagePerms)
-{
-  if (origPagePerms != newPagePerms) {
-    setPagePermissions(vpn, origPagePerms);
-  }
+  if (isPageWriteable(desc)) return false;
+  setPageWriteable(desc);
+  return true;
 }
 
 int
@@ -84,8 +89,11 @@ main(int argc, char **argv)
   char c;
   int optind;
   bool vflag = false;
-  void *curVPN=NULL, *tmpVPN=NULL;
-  uint64_t origPagePerms, newPagePerms;
+  bool pgupdated;
+  void *pgdesc;
+  unsigned int pglvl;
+  uint64_t vpnmsk;
+  uint64_t curvpn, tmpvpn;
   
   while ((c = getopt (argc, argv, "v")) != -1) {
     switch (c) {
@@ -101,23 +109,28 @@ main(int argc, char **argv)
     exit(-1);
   }
   
-  char *addr = (void *) strtoll(argv[1],NULL,16);
+  uint64_t addr =  strtoll(argv[1],NULL,16);
+  pgdesc = getPageDesc(addr, &pglvl);
+  vpnmsk = getVPNMask(pglvl);
+  curvpn = 0; // initlize
   
   while ((c=getchar())!=EOF) {
-    tmpVPN = getPageVPN(addr);
-    if (tmpVPN != curVPN) {
+    tmpvpn = addr & vpnmsk;
+    if (tmpvpn != curvpn) {
       // crossed a page boundary or first page
       // restore permissions on old page if needed
-      if (curVPN!=NULL) restorePagePerms(curVPN, origPagePerms, newPagePerms);
-      curVPN = tmpVPN; // update current page to new page
+      if (curvpn != 0 && pgupdated) clearPageWriteable(pgdesc);
+      pgdesc = getPageDesc(addr, &pglvl);
+      vpnmsk = getVPNMask(pglvl);
+      curvpn = tmpvpn; 
       // fix new page permissions if needed
-      fixPagePerms(curVPN, &origPagePerms, &newPagePerms);
+      pgupdated = updateWriteIfNeeded(pgdesc);
     }
-    *addr = c;
+    *((char *)addr) = c;
     addr++;
   }
   // restore last page permissions if needed
-  if (curVPN!=NULL) restorePagePerms(curVPN, origPagePerms, newPagePerms);
+  if (pgupdated) updateWriteIfNeeded(pgdesc);
   return 0;
 }
 
