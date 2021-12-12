@@ -27,7 +27,7 @@ SYMBI_PGFLT_LIB=${SYMBI_PGFLT_LIBDIR}/libsym.a
 all: old.dump new.dump symrd symwr 
 
 symrd: readbytes.c ${SYMBI_L0_HEADER} ${SYMBI_L0_LIB}
-	gcc -o $@ $< ${SYMBI_L0_LIB}
+	gcc ${DEBUG} -o $@ $< ${SYMBI_L0_LIB}
 
 ${SYMBI_L0_HEADER}:
 	cd Symbi-OS && git clone ${SYMBI_L0_REPO}
@@ -35,7 +35,7 @@ ${SYMBI_L0_LIB}: ${SYMBI_L0_HEADER}
 	make -C ${SYMBI_L0_LIBDIR}
 
 symwr: writebytes.c ${SYMBI_PGFLT_HEADER} ${SYMBI_PGFLT_LIB}
-	gcc -o $@ $< ${SYMBI_PGFLT_LIB}
+	gcc ${DEBUG} -o $@ $< ${SYMBI_PGFLT_LIB}
 
 ${SYMBI_PGFLT_HEADER}:
 	cd Symbi-OS && git clone ${SYMBI_PGFLT_REPO}
