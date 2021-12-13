@@ -1,0 +1,21 @@
+#!/bin/bash
+
+bin=$1
+
+if [[ -z $bin ]]; then
+   echo "UASGE: %0 <binary file>"
+   echo "  converts a binary blob into gas asm file assuming the bytes form opcodes"
+   exit -1;
+fi
+
+
+cat <<EOF
+    .intel_syntax
+    .text
+
+opcodes:
+EOF
+xxd -i $bin  | grep '0x' | tr ',' '\n' | while read byte; do
+    [[ -n $byte ]] && echo -e "\t .byte $byte"
+done
+

@@ -1,0 +1,17 @@
+#!/bin/bash
+# verbose equivalent of
+# cat old.bin | ndisasm -b 64 -p intel - | cut -d' ' -f 3 | sed 's/^0F87/0F8F/' | xxd -p -r  | ndisasm -b 64 -p intel -
+
+# rewrite occurances of intel 64bit near ja <32 bit offset> to near jg <32 bit offset>
+ndisasm -b 64 -p intel - | while read addr opcodes disasm
+do
+  [[ -n $VERBOSE ]] && echo "$addr $opcodes $disasm" > /dev/stderr
+  if [[ $opcodes =~ ^0F87(.*) ]]; then
+    offset=${BASH_REMATCH[1]}
+    [[ -n $VERBOSE ]] && echo "  Found ja to offset $offset" > /dev/stderr
+    [[ -n $VERBOSE ]] && echo "  rewrite $opcodes -> 0F8F${offset}" > /dev/stderr
+    echo "0F8F${offset}"
+  else
+    echo $opcodes
+  fi
+done | xxd -r -p
