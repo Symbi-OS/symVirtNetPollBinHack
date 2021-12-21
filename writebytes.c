@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "Symbi-OS/Apps/include/headers/sym_lib.h"
+#include "Symbi-OS/Apps/include/headers/sym_lib_hacks.h"
 #include "Symbi-OS/Apps/include/headers/sym_lib_page_fault.h"
 
 
@@ -25,31 +27,37 @@ void usage(int argc, char **argv)
 	  argv[0]);
 }
 
-
-
 uint64_t
 getVPNMask(unsigned int level)
 {
+  uint64_t mask = 0; 
   switch (level) {
   case PG_LEVEL_4K:
-    return ~(((1ULL<<12)-1));
+    mask = ~(((1ULL<<12)-1));
+    break;
   case PG_LEVEL_2M:
-    return ~(((1ULL<<20)-1));
+    mask = ~(((1ULL<<20)-1));
+    break;
   case PG_LEVEL_1G:
-    return ~(((1ULL<<29)-1));
+    mask =  ~(((1ULL<<29)-1));
+    break;
   case PG_LEVEL_512G:
-    return ~(((1ULL<<38)-1));
+    mask =  ~(((1ULL<<38)-1));
+    break;
   default:
     assert(0);
-  }	    
-  return 0;
+  }
+  fprintf(stderr, "%s(%d) : %llx\n", __func__, level, mask);
+  return mask;
 }
 
 void *
 getPageDesc(uint64_t addr, unsigned int *level)
 {
   //  returns a copy of the page descriptor
-  return  sym_get_pte(addr, level);
+  void *rc = sym_get_pte(addr, level);
+  fprintf(stderr, "%s(%llx) : %p pglvl: %d\n", __func__, addr, rc, *level);
+  return  rc;
 }
 
 
@@ -83,10 +91,22 @@ bool updateWriteIfNeeded(void *desc)
   return true;
 }
 
+long sym_init(void)
+{
+  sym_touch_stack();
+  sym_touch_every_page_text();
+  return sym_elevate();
+}
+
+long sym_done(void)
+{
+  return  sym_lower();
+}
+
 int
 main(int argc, char **argv)
 {
-  char c;
+  int c;
   int optind;
   bool vflag = false;
   bool pgupdated;
@@ -94,7 +114,8 @@ main(int argc, char **argv)
   unsigned int pglvl;
   uint64_t vpnmsk;
   uint64_t curvpn, tmpvpn;
-  
+
+#if 0
   while ((c = getopt (argc, argv, "v")) != -1) {
     switch (c) {
     case 'v':
@@ -108,13 +129,29 @@ main(int argc, char **argv)
   if (optind != (argc-1)) {
     exit(-1);
   }
-  
-  uint64_t addr =  strtoll(argv[1],NULL,16);
+#endif
+ uint64_t addr =  strtoull(argv[1],NULL,16);
+ fprintf(stderr, "%s : %s addr=%llx\n", __func__, argv[1], addr);
+ 
+ // symbiote initilization
+#ifndef NOSYM
+ sym_init();
+#endif
+ 
+  fprintf(stderr, "sys_init(): done\n");
+
+#ifndef NOSYM  
   pgdesc = getPageDesc(addr, &pglvl);
   vpnmsk = getVPNMask(pglvl);
+#else
+  pgdesc = 0;
+  vpnmsk = 0;
+#endif
+  
   curvpn = 0; // initlize
   
   while ((c=getchar())!=EOF) {
+#ifndef NOSYM
     tmpvpn = addr & vpnmsk;
     if (tmpvpn != curvpn) {
       // crossed a page boundary or first page
@@ -126,11 +163,20 @@ main(int argc, char **argv)
       // fix new page permissions if needed
       pgupdated = updateWriteIfNeeded(pgdesc);
     }
+#endif
+    fprintf(stderr, "0x%llx <- 0x%02hhx\n", addr, c);
+#ifndef NOSYM
     *((char *)addr) = c;
+#endif
     addr++;
   }
+  
   // restore last page permissions if needed
+#ifndef NOSYM
   if (pgupdated) updateWriteIfNeeded(pgdesc);
+  sym_done();
+#endif 
+  
   return 0;
 }
 

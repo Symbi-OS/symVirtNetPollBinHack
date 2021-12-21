@@ -8,6 +8,8 @@ LINE=1545
 FILE=virtio_net.c
 VMLINUX=${VERSION}/vmlinux
 
+STATIC=-static
+
 SYMBI_DIR=Symbi-OS
 
 SYMBI_L0_REPO=git@github.com:Symbi-OS/Apps.git
@@ -27,7 +29,7 @@ SYMBI_PGFLT_LIB=${SYMBI_PGFLT_LIBDIR}/libsym.a
 all: old.dump new.dump symrd symwr 
 
 symrd: readbytes.c ${SYMBI_L0_HEADER} ${SYMBI_L0_LIB}
-	gcc ${DEBUG} -o $@ $< ${SYMBI_L0_LIB}
+	gcc ${STATIC} ${DEBUG} -o $@ $< ${SYMBI_L0_LIB}
 
 ${SYMBI_L0_HEADER}:
 	cd Symbi-OS && git clone ${SYMBI_L0_REPO}
@@ -35,7 +37,10 @@ ${SYMBI_L0_LIB}: ${SYMBI_L0_HEADER}
 	make -C ${SYMBI_L0_LIBDIR}
 
 symwr: writebytes.c ${SYMBI_PGFLT_HEADER} ${SYMBI_PGFLT_LIB}
-	gcc ${DEBUG} -o $@ $< ${SYMBI_PGFLT_LIB}
+	gcc ${STATIC} ${DEBUG} -o $@ $< ${SYMBI_PGFLT_LIB}
+
+nosymwr: writebytes.c ${SYMBI_PGFLT_HEADER} ${SYMBI_PGFLT_LIB}
+	gcc -DNOSYM ${STATIC} ${DEBUG} -o $@ $< ${SYMBI_PGFLT_LIB}
 
 ${SYMBI_PGFLT_HEADER}:
 	cd Symbi-OS && git clone ${SYMBI_PGFLT_REPO}
@@ -61,7 +66,7 @@ old.addr:
 	./bin/getLineAddr ${VMLINUX} ${FILE} ${LINE} > $@
 
 old.opcodes: old.addr
-	./bin/getOpcodes ${VMLINUX} $(shell cat old.addr) > $@
+	./bin/getOpcodes ${VMLINUX} $(shell cat old.addr) 2 > $@
 
 old.xxd: old.opcodes
 	cut -f 2 $< > $@
