@@ -1,0 +1,1 @@
+./symwr 0x$(cat old.addr) < new.bin

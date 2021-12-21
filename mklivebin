@@ -1,0 +1,1 @@
+./symrd $(cat old.addr) 18 > live.bin
