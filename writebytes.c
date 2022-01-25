@@ -4,10 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "Symbi-OS/Apps/include/headers/sym_lib.h"
-#include "Symbi-OS/Apps/include/headers/sym_lib_hacks.h"
-#include "Symbi-OS/Apps/include/headers/sym_lib_page_fault.h"
-
+#include "LINF/sym_all.h"
 
 // when we add support for kernel source get this
 // from arch/x86/include/asm/pgtable_types.h

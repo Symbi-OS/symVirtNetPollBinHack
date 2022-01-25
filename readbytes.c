@@ -3,8 +3,8 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <string.h>
-#include "Symbi-OS/Apps/include/headers/sym_lib.h"
-#include "Symbi-OS/Apps/include/headers/sym_lib_hacks.h"
+
+#include "LINF/sym_all.h"
 
 void
 usage(int argc, char **argv)

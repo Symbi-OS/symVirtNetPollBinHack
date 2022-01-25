@@ -10,40 +10,39 @@ VMLINUX=${VERSION}/vmlinux
 
 STATIC=-static
 
-SYMBI_DIR=Symbi-OS
+SYMBI_BASE_DIR=Symbi-OS
 
-SYMBI_L0_REPO=git@github.com:Symbi-OS/Apps.git
-SYMBI_L0_DIR=${SYMBI_DIR}/Apps
-SYMBI_L0_HEADER=${SYMBI_L0_DIR}/include/headers/sym_lib.h
-SYMBI_L0_LIBDIR=${SYMBI_L0_DIR}/include
-SYMBI_L0_LIB=${SYMBI_L0_LIBDIR}/libsym.a
+SYMBI_REPO=git@github.com:Symbi-OS/Apps.git
+SYMBI_DIR=${SYMBI_BASE_DIR}/Apps
+SYMBI_LIB_DIR=${SYMBI_DIR}/libs/symlib
+SYMBI_HEADER_DIR=${SYMBI_LIB_DIR}/include
+SYMBI_LIB=${SYMBI_LIB_DIR}/build/libsym.a
+KALLSYM_LIB=${SYMBI_DIR}/libs/kallsymlib/libkallsym.a
 
-SYMBI_PGFLT_REPO=git@github.com:Symbi-OS/Apps.git
-SYMBI_PGFLT_DIR=${SYMBI_DIR}/Apps
-SYMBI_PGFLT_HEADER=${SYMBI_PGFLT_DIR}/include/headers/sym_lib_page_fault.h
-SYMBI_PGFLT_LIBDIR=${SYMBI_PGFLT_DIR}/include
-SYMBI_PGFLT_LIB=${SYMBI_PGFLT_LIBDIR}/libsym.a
-
-.PHONEY: clean dist-clean all download extract config prepare vmlinux
+.PHONEY: clean dist-clean all download extract config prepare vmlinux symbilib
 
 all: old.dump new.dump symrd symwr 
 
-symrd: readbytes.c ${SYMBI_L0_HEADER} ${SYMBI_L0_LIB}
-	gcc ${STATIC} ${DEBUG} -o $@ $< ${SYMBI_L0_LIB}
 
-${SYMBI_L0_HEADER}:
-	cd Symbi-OS && git clone ${SYMBI_L0_REPO}
-${SYMBI_L0_LIB}: ${SYMBI_L0_HEADER}
-	make -C ${SYMBI_L0_LIBDIR}
+symrd: readbytes.c ${SYMBI_LIB}
+	gcc ${STATIC} ${DEBUG} -I${SYMBI_HEADER_DIR} -o $@ $< ${SYMBI_LIB}
 
-symwr: writebytes.c ${SYMBI_PGFLT_HEADER} ${SYMBI_PGFLT_LIB}
-	gcc ${STATIC} ${DEBUG} -o $@ $< ${SYMBI_PGFLT_LIB}
+symbilib: ${SYMBI_LIB}
+
+${SYMBI_LIB_DIR}/Makefile:
+	cd ${SYMBI_BASE_DIR} && git clone ${SYMBI_REPO}
+
+${SYMBI_LIB}: ${SYMBI_LIB_DIR}/Makefile
+	make -C ${SYMBI_LIB_DIR}
+
+symwr: writebytes.c ${SYMBI_LIB}
+	gcc ${STATIC} ${DEBUG} -I${SYMBI_HEADER_DIR} -o $@ $< ${SYMBI_LIB} ${KALLSYM_LIB}
 
 nosymwr: writebytes.c ${SYMBI_PGFLT_HEADER} ${SYMBI_PGFLT_LIB}
 	gcc -DNOSYM ${STATIC} ${DEBUG} -o $@ $< ${SYMBI_PGFLT_LIB}
 
-${SYMBI_PGFLT_HEADER}:
-	cd Symbi-OS && git clone ${SYMBI_PGFLT_REPO}
+#${SYMBI_PGFLT_HEADER}:
+#	cd Symbi-OS && git clone ${SYMBI_PGFLT_REPO}
 ${SYMBI_PGFLT_LIB}: ${SYMBI_PGFLT_HEADER}
 	make -C ${SYMBI_PGFLT_LIBDIR}
 
