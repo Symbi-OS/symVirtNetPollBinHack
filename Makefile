@@ -46,20 +46,26 @@ nosymwr: writebytes.c ${SYMBI_PGFLT_HEADER} ${SYMBI_PGFLT_LIB}
 ${SYMBI_PGFLT_LIB}: ${SYMBI_PGFLT_HEADER}
 	make -C ${SYMBI_PGFLT_LIBDIR}
 
-new.o: new.S
-	gcc -c new.S -o new.o
+#new.o: new.S
+#	gcc -c new.S -o new.o
 
-new.opcodes: new.o
-	./bin/getOpcodes $< 0: > $@
+#new.opcodes: new.o
+#	./bin/getOpcodes $< 0: > $@
 
-new.xxd: new.opcodes
-	cut -f 2 $< > $@
+#new.xxd: new.opcodes
+#	cut -f 2 $< > $@
 
-new.bin: new.xxd
-	xxd -ps -r $< > $@
+new.bin: old.bin
+	cat $< | VERBOSE=1 ./bin/rewriteJAtoJG > $@
 
 new.dump: new.bin old.addr
 	ndisasm -o 0x$(shell cat old.addr) -b 64 -p intel $< > $@
+
+live.bin: symrd
+	./symrd $(shell cat old.addr) 18 > $@
+
+live.xxd: live.bin
+	xxd  $< > $@
 
 old.addr: 
 	./bin/getLineAddr ${VMLINUX} ${FILE} ${LINE} > $@
