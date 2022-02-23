@@ -92,6 +92,7 @@ long sym_init(void)
 {
   sym_touch_stack();
   sym_touch_every_page_text();
+  sym_lib_init();
   return sym_elevate();
 }
 
